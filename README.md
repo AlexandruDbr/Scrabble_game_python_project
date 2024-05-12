@@ -7,7 +7,7 @@ The project scope is not to emphasise proficiency in game development, but rathe
 Therefore, although I tried to make this game reasonably close to reality by applying most of the rules, 
 some of them were not implemented. <br>
 
-Below are mentioned the rules of this version of the game and how I implemented them. <br>
+Below are mentioned the rules of this version of the game and how to play it. <br>
 
 
 
