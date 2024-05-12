@@ -1,5 +1,7 @@
 import random
 import pandas as pd
+import openpyxl
+import os
 
 letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
            "W", "X", "Y", "Z"]
@@ -10,24 +12,31 @@ limit_letter = 100
 # 1. Create a dictionary with points assigned to its corresponding letter
 letter_to_points = {key: value for key, value in zip(letters, points)}
 
-# 2. Type how many people will play and create a function which will prompt user to create the player name:
+
+# 2. Create a prompt to ask how many people will play and to add player name
 player_words = {} #create a dictionary to store users and their words
 letters_used = 0 #create a variable to store the number of letters
 # player_status = pd.DataFrame({}) #a dataframe with player points
 count_turns = 0 #provide the turn number
 count_players = 0 #create a variable to distribute total words left equally for each player
 player_range = range(1,
-                        int(input("Enter number of players: ")
+                        int(input("Enter number of players:")
                                 )+1
                       ) #create a variable with the number of players, from 1 to n
 words_left = 100
+cards_drawn = {}
+file_path = os.curdir+'\scores.xlsx'
 
-def insert_players(player_number): #Add player names in the dictionary
+
+def insert_players(player_number): #Add player names in the dictionary and draw card
     global count_players
+    global cards_drawn
     for i in player_number:
+        x = random.randrange(1, 26) #extract random card from 1 to 26
         user = input(f'Enter player {i} name: ')
-        player_words[user] = []
-        count_players += 1 #add the number of players in count_player variable
+        player_words[user] = [] #add user name in player_words dict
+        count_players += 1 #for each player add the number of players in count_player variable
+        cards_drawn[user] = x #map each player to their letter drawn
 
 
 def insert(): #increment the number of turns, ask player to add words until nr of letters available per player < 2
@@ -36,21 +45,24 @@ def insert(): #increment the number of turns, ask player to add words until nr o
     global letters_used
     global player_words
     global words_left
+    global letters
+    sorted_user = dict(sorted(cards_drawn.items(), key=lambda keyvalue: keyvalue[1])) #sort the cards based in asc order to decide who places the first word
+    loop = 0
+    for player, letter in sorted_user.items():
+        print(f'Player {player} draw letter: {letters[letter]}')
+        loop += 1
+    print(f'Player {list(sorted_user.keys())[0]} places the first word. \n')
 
-    while words_left/count_players > 2: #check if: number of letters is already beyond the maximum number allowed
-                                  # players have at least 2 words per player
-        count_turns += 1
+    while words_left/count_players > 2: #while number of letters is more than maximum number allowed, execute
+
+        count_turns += 1 #count turn
         print(f'Turn {count_turns}:')
-        # all_words = sum(player_words.values(), [])  # add all words in a single list to count the nr of letters
-        # print(all_words)
-        # for word in all_words:  # count the total number of letters
-        #     for letter in word:
-        #         letters_used += 1
-
+        print(f'')
         if letters_used > 0: #if there are words inserted, calculate the new max nr of letters admitted
             max_letters = round(words_left/count_players)
-            for player in player_words.keys():
-                while True:     # while user inserted word's letters > than the max nr of letters admitted, prompt the user to add the word
+
+            for player in sorted_user.keys():
+                while True:     # while user above max letters admitted prompt the user to add the word, else, append in player_words
                     add_word = input(f'Hey {player}! Please insert a word of max {max_letters}: ')
                     if len(add_word) > max_letters:
                         print(f'Word length is higher than {max_letters}. Please try again' )
@@ -61,152 +73,84 @@ def insert(): #increment the number of turns, ask player to add words until nr o
                         for letter in add_word: #add letter in letters_used
                             letters_used += 1
                         break
-            words_left = limit_letter - letters_used
+            words_left = limit_letter - letters_used #recalculate nr. of letters left
+
         else: #if this is the first insertion, calculate the max threshold and prompt the user to add the word
             max = round(words_left/count_players)
-            for player in player_words.keys(): #ask each player added in insert_players to insert a word < max lenght admitted
-                while True: #Loop
+            for player in sorted_user.keys(): #ask each player added in insert_players to insert a word < max lenght admitted
+                while True:
                     add_word = input(f'Hey {player}! Please insert a word of max {max}: ')
                     if len(add_word) > max:
                         print(f'Word length is higher than {max}. Please try again')
                         continue
-                    else: #if word length is ok, do the next operation
+                    else: #if word length is ok, append word in player_words
                         print(f'Word \'{add_word}\' ok')
                         player_words[player].append(add_word)
                         for letter in add_word:
                             letters_used += 1
                         break
-            words_left = limit_letter - letters_used
+            words_left = limit_letter - letters_used #recalculate nr. of letters left
 
     else:
-        print("Game over. Number of words letters left < 4 . The score is: """)
+        print(f'Game over. Number of words letters left:{words_left}. The final score per player is: ')
 
+
+
+#3. Calculate the final score per player, add the score for each player in a dataframe and ask user if he and to export to excel
 def update_point_totals():
     global player_words
-    new_dct = {} #create a temporary dicitonary to help insert data in df with "from_dict" method
+    new_dct = {} #create a temporary dicitonary to add the player and score. List cannot be used in "from_dict" method
+    sorted_user = dict(cards_drawn.items(), key=lambda keyvalue: keyvalue[1]) #sort the user according to the card drawn. Will be used to decide who gets the doubleword
+    players_ordered = list(sorted_user.keys()) #create a list with all the players in asc order
     for player in player_words.keys():  # for each player and each list of words, calculate the current socore
         score = []
-        for word in player_words[player]:
-            for letter in word:
-                score.append(letter_to_points.get(letter.upper(), 0))  # add each letter from each word from "player_to_words" and store the score in variable "score"
+        while player == players_ordered[0]: #while player from player_words = first player, do the following
+            loop = 0
+            for word in player_words[player]:
+                loop += 1
+                while loop == 1: #for first word inserted double its score
+                    for letter in word:
+                        point = letter_to_points.get(letter.upper(), 0)*2 #score as doublword
+                        score.append(point)  # calculate score per word ana append in score list
+                    break
+                else:
+                    for letter in word: #for the rest of words and players, calculate the score normally
+                        point = letter_to_points.get(letter.upper(), 0)
+                        score.append(point)  # calculate score per word ana append in score list
+            break
+
+        else:
+            for word in player_words[player]: #for the rest of words and players, calculate the score normally
+                for letter in word:
+                    point = letter_to_points.get(letter.upper(), 0)
+                    score.append(point) # calculate score per word ana append in score list
+
         new_dct[player] = [sum(score)]  # add player as key and player_points as values
-    player_status = pd.DataFrame.from_dict(new_dct) #create a dataframe with the scores of each player
-    print(player_status)  #print the score table
+    player_status = pd.DataFrame.from_dict(new_dct) #create a dataframe with new_dct dictionary
+    print(player_status.to_string(index=False))  #print the score table
+    while True: #while input wrong, ask user again. If input 'y', export excel and stop, else, just stop
+        want_excel = input('Would you like to export the results?: ')
+        if want_excel != "y" and  want_excel != "n":
+            print("Didn't get that. Please answer with y or n")
+            print(type(want_excel))
+            continue
+        else:
+            if want_excel == "y":
+                player_status.to_excel(file_path, engine= 'openpyxl', index= False)
+                break
+            else:
+                break
 
 
+#4. Create a function to start the game
 def start():
     insertpl = insert_players(player_range)
     insert_words = insert()
     total_points = update_point_totals()
 
 
+#5. Execute it
 if __name__ == "__main__":
     start()
 
-
-
-#
-#
-# # 6. Create a function to loop through "player_to_words" dictionary and calculate score for each player
-# player_to_points = {} #this dictionary will be of format: player : point
-#
-#
-# # You need to append each player in the new dataframe
-# # You need to add the score next to the word each time the user adds a new word
-# # calculate the points for each user by getting each word from each tupple, extract the point corresponding to each
-# # letter from letter_to_points, summing each point in a variable,  the
-# # You need a variable to store points BUT
-#
-#
-#
-#
-# update_point_totals(player_to_words) #Run update_point_totals and print result
-# print(player_to_points)
-#
-#
-#
-# insert_word = insert(player_status)
-#
-#
-# print(player_status)
-# print(player_letters)
-# print(count_turns)
-# print(count_players)
-#
-#
-#
-#     # 3. This function will take user input and return how many points is the word worth
-#     def score_word(word):
-#         point_total = 0
-#         for letter in word:
-#             point_total += letter_to_points.get(letter.upper(), 0)
-#         return point_total
-#
-#
-#     word = input("Please add your word:")
-#
-#
-#     # 4. Test score_word
-#     brownie_points = score_word(word)
-#     print(brownie_points, end='\n\n')
-#
-#
-#     # 5. Create a dictionary which tracks some players and the words they played
-#     player_to_words = {'player1': ['BLUE', 'TENNIS', 'EXIT'], 'wordNerd': ['EARTH', 'EYES', 'MACHINE'],
-#                        'Lexi Con': ['ERASER', 'BELLY', 'HUSKY'], 'Prof Reader': ['ZAP', 'COMA', 'PERIOD']}
-#
-#
-#
-#
-#
-#     # Checking: Add player 1001 with a list of names
-#     player1001 = {'Alexandru': ['Polymorphism', 'Abstraction', 'Incapsulation']}
-#
-#     player1001['Alexandru'].append('Chess')  # append other names into the values
-#     player1001['Alexandru'].append('Tennis')  # append other names into the values
-#     player1001['Alexandru'].append("Other3")
-#
-#
-#     #  Checking: Add player 70012 with a list of names
-#     player70012 = {'Silviu': ['Tracking', 'Coding', 'Carting']}
-#
-#     # Call play_word function and check the dictionary with players
-#     play_word(player1001, player_to_words)
-#     play_word(player70012, player_to_words)
-#
-#
-#
-#     # Check if the program creates lists in case user does not add values as lists
-#     # 1. Create variables to store user input
-#     player11 = {'player1': 'think'}
-#     player111 = {'player1': 'train'}
-#     player3 = {'player3': 'trust'}
-#     player4 = {'player3': 'etiquette'}
-#
-#
-#     # 2. Add user input in the dictionary
-#     play_word(player11, player_to_words)
-#     play_word(player3, player_to_words)
-#     play_word(player4, player_to_words)
-#
-#
-#     player_to_words['Alexandru'].append("Other")
-#     player_to_words['Alexandru'].append("Other2")
-#     player1001['Alexandru'].append("Other2")
-#
-#
-#     # 3. Check final result
-#     print(player_to_words)
-#
-#     # Make letter_to_points function to handle lowercase inputs as well. Added upper in the for loop.
-#
-#     # Call update_point_totals()
-#     update_point_totals(player_to_words)
-#
-#     # check updated score list
-#     print(player_to_points)
-#
-#     check_alex = score_word('Polymorphism')
-#     print(check_alex)
-#
 
