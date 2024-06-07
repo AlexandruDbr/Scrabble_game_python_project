@@ -3,7 +3,7 @@
 ## Project overview
 
 This project partially resembles a scrabble game with 100 pieces.
-The project scope is not to emphasise proficiency in game development, but rather a good comprehension of Python functions and control flow. 
+The project scope is not to emphasise proficiency in game development, but rather a good comprehension of Python functions, lists, dictionaries, strings and control flow. 
 Therefore, although I tried to make this game reasonably close to reality by applying most of the rules, 
 some of them were not implemented. <br>
 
